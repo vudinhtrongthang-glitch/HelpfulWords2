@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Shuffle Cards Pro</title>
+    <style>
+        :root { --bg: #000; --text: #fff; --accent: rgba(255, 255, 255, 0.3); }
+        body {
+            display: flex; align-items: center; justify-content: center;
+            height: 100vh; margin: 0; background-color: var(--bg);
+            color: var(--text); font-family: "Times New Roman", Times, serif;
+            overflow: hidden; -webkit-tap-highlight-color: transparent; perspective: 1000px;
+        }
+
+        /* Thẻ bài */
+        #card {
+            width: 80vw; max-width: 300px; height: 70vh; max-height: 480px;
+            background-color: var(--bg); border: 1px solid var(--accent);
+            border-radius: 24px; position: relative; cursor: pointer;
+            user-select: none; box-shadow: 0 0 40px rgba(255, 255, 255, 0.03);
+            transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1); transform-style: preserve-3d;
+        }
+
+        .corner { position: absolute; width: 40px; height: 40px; opacity: 0.5; pointer-events: none; }
+        .top-left { top: 12px; left: 12px; }
+        .top-right { top: 12px; right: 12px; transform: scaleX(-1); }
+        .bottom-left { bottom: 12px; left: 12px; transform: scaleY(-1); }
+        .bottom-right { bottom: 12px; right: 12px; transform: scale(-1); }
+
+        .content-wrapper {
+            width: 100%; height: 100%; display: flex; align-items: center;
+            justify-content: center; text-align: center; padding: 40px;
+            box-sizing: border-box; backface-visibility: hidden;
+        }
+
+        .message-text { font-size: 1.4rem; line-height: 1.5; letter-spacing: 0.3px; }
+
+        @keyframes flipSpin {
+            0% { transform: rotateY(0) scale(1); }
+            50% { transform: rotateY(540deg) scale(0.85); }
+            100% { transform: rotateY(1080deg) scale(1); }
+        }
+        .animating { animation: flipSpin 0.9s cubic-bezier(0.23, 1, 0.32, 1); }
+
+        /* Ngăn kéo cài đặt */
+        #drawer {
+            position: fixed; bottom: -90vh; left: 0; width: 100%; height: 90vh;
+            background: #111; border-top: 1px solid var(--accent);
+            border-radius: 25px 25px 0 0; transition: bottom 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+            z-index: 100; padding: 20px; box-sizing: border-box;
+            display: flex; flex-direction: column;
+        }
+        #drawer.open { bottom: 0; }
+        .handle {
+            width: 40px; height: 5px; background: var(--accent);
+            border-radius: 10px; margin: 0 auto 20px; cursor: pointer;
+        }
+
+        textarea {
+            width: 100%; flex-grow: 1; background: #000; color: #fff;
+            border: 1px solid var(--accent); border-radius: 15px;
+            padding: 15px; font-family: sans-serif; font-size: 1rem;
+            resize: none; outline: none;
+        }
+        .btn-group { display: flex; gap: 10px; margin-top: 15px; margin-bottom: 20px; }
+        button {
+            flex: 1; padding: 12px; border-radius: 10px; border: none;
+            background: #fff; color: #000; font-weight: bold; cursor: pointer;
+        }
+        .hint-swipe {
+            position: absolute; bottom: 20px; font-size: 0.7rem;
+            opacity: 0.3; text-transform: uppercase; letter-spacing: 1px;
+        }
+        .floral-svg { width: 100%; height: 100%; fill: none; stroke: white; stroke-width: 0.8; }
+    </style>
+</head>
+<body>
+
+    <div id="card" onclick="startShuffle()">
+        <div class="corner top-left"><svg class="floral-svg" viewBox="0 0 40 40"><path d="M5,35 Q5,5 35,5 M5,5 L12,12 M5,5 L15,8 M5,5 L8,15" /><circle cx="35" cy="5" r="1.5" fill="white"/></svg></div>
+        <div class="corner top-right"><svg class="floral-svg" viewBox="0 0 40 40"><path d="M5,35 Q5,5 35,5 M5,5 L12,12 M5,5 L15,8 M5,5 L8,15" /><circle cx="35" cy="5" r="1.5" fill="white"/></svg></div>
+        <div class="corner bottom-left"><svg class="floral-svg" viewBox="0 0 40 40"><path d="M5,35 Q5,5 35,5 M5,5 L12,12 M5,5 L15,8 M5,5 L8,15" /><circle cx="35" cy="5" r="1.5" fill="white"/></svg></div>
+        <div class="corner bottom-right"><svg class="floral-svg" viewBox="0 0 40 40"><path d="M5,35 Q5,5 35,5 M5,5 L12,12 M5,5 L15,8 M5,5 L8,15" /><circle cx="35" cy="5" r="1.5" fill="white"/></svg></div>
+
+        <div class="content-wrapper" id="content">
+            <svg style="width:70px; opacity:0.6" viewBox="0 0 100 100" fill="none" stroke="white" stroke-width="0.5">
+                <circle cx="50" cy="50" r="40" /><circle cx="50" cy="50" r="30" />
+                <path d="M50 10 L50 90 M10 50 L90 50 M21 21 L79 79 M79 21 L21 79" />
+                <circle cx="50" cy="50" r="4" fill="white"/>
+            </svg>
+        </div>
+    </div>
+
+    <div class="hint-swipe">Quẹt lên để chỉnh sửa</div>
+
+    <div id="drawer">
+        <div class="handle" onclick="toggleDrawer()"></div>
+        <h3 style="margin-top:0">Danh sách thông điệp</h3>
+        <p style="font-size: 0.8rem; opacity: 0.6;">Mỗi dòng là một thông điệp mới.</p>
+        <textarea id="messageInput"></textarea>
+        <div class="btn-group">
+            <button onclick="saveMessages()">LƯU THAY ĐỔI</button>
+            <button style="background:#333; color:#fff" onclick="toggleDrawer()">ĐÓNG</button>
+        </div>
+    </div>
+
+    <script>
+        let defaultMessages = [
+            "Proceed with uncertainty", "Let people deal with the burden of you being you",
+            "Start first, feel better later", "Walking in sunlight, looking around",
+            "Take inspired actions", "Aim low", "Pressure is in your head",
+            "Patient is to observe how impatient you are", "Non judgmental is to observe how judgmental you are",
+            "Best medicines: Sunlight, exercise, self-confidence, friends", "Decide the few friends you have",
+            "Be yourself, so that the people looking for you can find you", "Sip and savor",
+            "Do you know the next step?", "See enough, hurt enough, learn enough, receive enough",
+            "Take things lightly", "A bad day for the ego is a great day for the soul",
+            "According to plan, not to mood", "Learn to delay gratification",
+            "Be creative with everyday problems", "Trust what you knew then not how you feel now",
+            "Everything is meaningful", "Có làm mới có làm sai. Có làm sai mới có làm tốt",
+            "Không có gì để nói thì đừng nói gì - Mark Twain", "Collect enough data before deciding",
+            "Consider the perimeter of your projects", "You don’t have to always be emotional available",
+            "Avoid your most comfortable self", "Necessity is a great teacher",
+            "Cure for loneliness: Join every groups, be curious about everything",
+            "Confidence and fear both requires believing in something that hasn’t happened yet",
+            "Be comfortable with being uncomfortable", "Maturity is just being anxious about better problems",
+            "Disciplined is just being addicted to better things", "Say no to the 'kinda yes'",
+            "Có trách nghiệm với xã hội hay với lương tâm?", "Có thoả mãn hay có ý nghĩa?",
+            "Sợ hay tự tin?", "How you feel at the moment shouldn’t DOMINATE what you are doing",
+            "Self esteem is a choice that you should make everytime", "The receiver gives, the giver receives",
+            "It’s okay to be without objective, just be present", "Shine brightly on the present moment",
+            "Big funnel, small filter", "20% táo bạo mỗi ngày", "Life is a series of dots, not a line",
+            "Get civilized, learn", "Minimize future regrets"
+        ];
+
+        let currentMessages = JSON.parse(localStorage.getItem('myCards')) || defaultMessages;
+        let isAnimating = false;
+
+        function startShuffle() {
+            if (isAnimating) return;
+            isAnimating = true;
+            const card = document.getElementById('card');
+            const content = document.getElementById('content');
+            card.classList.add('animating');
+            setTimeout(() => {
+                const randomIndex = Math.floor(Math.random() * currentMessages.length);
+                content.innerHTML = `<div class="message-text">${currentMessages[randomIndex]}</div>`;
+            }, 450);
+            setTimeout(() => { card.classList.remove('animating'); isAnimating = false; }, 900);
+        }
+
+        function toggleDrawer() { document.getElementById('drawer').classList.toggle('open'); }
+
+        function saveMessages() {
+            const input = document.getElementById('messageInput').value;
+            currentMessages = input.split('\n').filter(line => line.trim() !== "");
+            localStorage.setItem('myCards', JSON.stringify(currentMessages));
+            toggleDrawer();
+            alert("Đã lưu!");
+        }
+
+        // Khởi tạo dữ liệu vào textarea
+        document.getElementById('messageInput').value = currentMessages.join('\n');
+
+        // Xử lý quẹt lên trên iPhone
+        let touchstartY = 0;
+        document.addEventListener('touchstart', e => touchstartY = e.changedTouches[0].screenY);
+        document.addEventListener('touchend', e => {
+            const touchendY = e.changedTouches[0].screenY;
+            if (touchstartY - touchendY > 100) document.getElementById('drawer').classList.add('open');
+            if (touchendY - touchstartY > 100) document.getElementById('drawer').classList.remove('open');
+        });
+    </script>
+</body>
+</html>
